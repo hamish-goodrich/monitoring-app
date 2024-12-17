@@ -1,101 +1,45 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'dart:io';
 import 'package:path_provider/path_provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 void main() {
-  runApp(MyApp());
+  runApp(GoodRichSedimentControlApp());
 }
 
-class MyApp extends StatelessWidget {
+class GoodRichSedimentControlApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Form to CSV',
+      title: 'GoodRich Sediment Control',
       theme: ThemeData(
-        primarySwatch: Colors.blue,
+        primaryColor: Colors.green,
+        colorScheme: ColorScheme.fromSwatch().copyWith(
+          secondary: Colors.grey[800],
+        ),
+        scaffoldBackgroundColor: Colors.grey[300],
+        textTheme: TextTheme(
+          titleLarge: TextStyle(fontSize: 20.0, fontWeight: FontWeight.bold, color: Colors.white),
+          bodyMedium: TextStyle(fontSize: 16.0, color: Colors.grey[800]),
+        ),
       ),
-      home: FormPage(),
+      home: GoodRichHomePage(),
     );
   }
 }
 
-class FormPage extends StatefulWidget {
-  @override
-  _FormPageState createState() => _FormPageState();
-}
-
-class _FormPageState extends State<FormPage> {
-  final _formKey = GlobalKey<FormState>();
-  final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _ageController = TextEditingController();
-  bool _isSaving = false;
-
-  Future<void> _saveToFile(String fileName, String content) async {
-    setState(() {
-      _isSaving = true;
-    });
-
-    try {
-      // Get the appropriate storage directory based on platform
-      final Directory? directory = await getExternalStorageDirectory();
-
-      if (directory == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('External storage not available')),
-        );
-        return;
-      }
-
-      // Construct custom directory path
-      final String customPath = '${directory.path}/GOODRICHAPP/Runsheets';
-      final Directory customDirectory = Directory(customPath);
-
-      // Create the directory if it doesn't exist
-      if (!await customDirectory.exists()) {
-        await customDirectory.create(recursive: true);
-      }
-
-      final File file = File('$customPath/$fileName');
-
-      // Write or append CSV content
-      final bool fileExists = await file.exists();
-      if (fileExists) {
-        // Append new data without rewriting header
-        await file.writeAsString('$content\n', mode: FileMode.append);
-      } else {
-        // Write with header for a new file
-        await file.writeAsString('Name,Age\n$content\n');
-      }
-
+class GoodRichHomePage extends StatelessWidget {
+  void _launchTelemetryURL(BuildContext context) async {
+    final Uri telemetryUrl = Uri.parse('https://green1telemetry.nz/');
+    if (!await launchUrl(
+      telemetryUrl,
+      mode: LaunchMode.externalApplication,
+    )) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('File saved successfully to ${file.path}')),
+        SnackBar(content: Text('Could not open telemetry URL')),
       );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error saving file: $e')),
-      );
-    } finally {
-      setState(() {
-        _isSaving = false;
-      });
-    }
-  }
-
-  void _handleSubmit() {
-    if (_formKey.currentState!.validate()) {
-      final String name = _nameController.text;
-      final String age = _ageController.text;
-
-      // Create CSV content
-      final String csvContent = '$name,$age';
-
-      // Save to file
-      _saveToFile('user_data.csv', csvContent);
-
-      // Clear the form
-      _nameController.clear();
-      _ageController.clear();
     }
   }
 
@@ -103,46 +47,194 @@ class _FormPageState extends State<FormPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Save Form to CSV'),
+        title: Text('GoodRich Sediment Control'),
+        backgroundColor: Colors.green,
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Welcome!',
+              style: TextStyle(fontSize: 24.0, fontWeight: FontWeight.bold, color: Colors.grey[800]),
+            ),
+            SizedBox(height: 16.0),
+            Expanded(
+              child: GridView.count(
+                crossAxisCount: 2,
+                crossAxisSpacing: 16.0,
+                mainAxisSpacing: 16.0,
+                children: [
+                  _buildTile(
+                    context,
+                    'Pond Monitoring',
+                    Icons.water_damage,
+                    Colors.blue,
+                  ),
+                  _buildTile(
+                    context,
+                    'Job Cards',
+                    Icons.assignment,
+                    Colors.orange,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => NewJobCardPage()),
+                      );
+                    },
+                  ),
+                  _buildTile(
+                    context,
+                    'Service Requests',
+                    Icons.build,
+                    Colors.red,
+                  ),
+                  _buildTile(
+                    context,
+                    'Telemetry',
+                    Icons.insights,
+                    Colors.purple,
+                    onTap: () {
+                      _launchTelemetryURL(context);
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        backgroundColor: Colors.grey[200],
+        selectedItemColor: Colors.green,
+        unselectedItemColor: Colors.grey,
+        items: [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home),
+            label: 'Home',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.notifications),
+            label: 'Alerts',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.settings),
+            label: 'Settings',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTile(BuildContext context, String title, IconData icon, Color color, {VoidCallback? onTap}) {
+    return GestureDetector(
+      onTap: onTap ??
+          () {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$title clicked')));
+          },
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12.0),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black12,
+              blurRadius: 8.0,
+              offset: Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 48.0, color: color),
+            SizedBox(height: 8.0),
+            Text(
+              title,
+              style: TextStyle(fontSize: 16.0, fontWeight: FontWeight.bold, color: Colors.grey[800]),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class NewJobCardPage extends StatefulWidget {
+  @override
+  _NewJobCardPageState createState() => _NewJobCardPageState();
+}
+
+class _NewJobCardPageState extends State<NewJobCardPage> {
+  final _formKey = GlobalKey<FormState>();
+  final _dateController = TextEditingController();
+  final _companyNameController = TextEditingController();
+  final _siteController = TextEditingController();
+  final _personnelController = TextEditingController();
+  final _installedController = TextEditingController();
+  final _unitTypeController = TextEditingController();
+  final _flocculantTypeController = TextEditingController();
+  final _amountUsedController = TextEditingController();
+  final _commentsController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _dateController.text = DateFormat('yyyy-MM-dd').format(DateTime.now()); // Autofill with the current date
+  }
+
+  Future<void> _saveForm() async {
+    final formData = '''
+Date: ${_dateController.text}
+Company Name: ${_companyNameController.text}
+Site: ${_siteController.text}
+Personnel: ${_personnelController.text}
+Installed/Moved/Disestablished: ${_installedController.text}
+Unit Type: ${_unitTypeController.text}
+Flocculant Type: ${_flocculantTypeController.text}
+Amount Used: ${_amountUsedController.text}
+Comments: ${_commentsController.text}
+''';
+
+    final directory = await getApplicationDocumentsDirectory();
+    final file = File('${directory.path}/job_card_${DateTime.now().millisecondsSinceEpoch}.doc');
+    await file.writeAsString(formData);
+
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Job card saved at ${file.path}')));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('New Job Card'),
+        backgroundColor: Colors.green,
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Form(
           key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: ListView(
             children: [
-              TextFormField(
-                controller: _nameController,
-                decoration: InputDecoration(labelText: 'Name'),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter your name';
-                  }
-                  return null;
-                },
-              ),
-              TextFormField(
-                controller: _ageController,
-                decoration: InputDecoration(labelText: 'Age'),
-                keyboardType: TextInputType.number,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter your age';
-                  }
-                  if (int.tryParse(value) == null) {
-                    return 'Please enter a valid number';
-                  }
-                  return null;
-                },
-              ),
+              TextFormField(controller: _dateController, decoration: InputDecoration(labelText: 'Date')),
+              TextFormField(controller: _companyNameController, decoration: InputDecoration(labelText: 'Company Name')),
+              TextFormField(controller: _siteController, decoration: InputDecoration(labelText: 'Site')),
+              TextFormField(controller: _personnelController, decoration: InputDecoration(labelText: 'Personnel')),
+              TextFormField(controller: _installedController, decoration: InputDecoration(labelText: 'Installed/Moved/Disestablished')),
+              TextFormField(controller: _unitTypeController, decoration: InputDecoration(labelText: 'Unit Type')),
+              TextFormField(controller: _flocculantTypeController, decoration: InputDecoration(labelText: 'Flocculant Type')),
+              TextFormField(controller: _amountUsedController, decoration: InputDecoration(labelText: 'Amount Used')),
+              TextFormField(controller: _commentsController, decoration: InputDecoration(labelText: 'Comments')),
               SizedBox(height: 20),
-              _isSaving
-                  ? Center(child: CircularProgressIndicator())
-                  : ElevatedButton(
-                      onPressed: _handleSubmit,
-                      child: Text('Save to CSV'),
-                    ),
+              ElevatedButton(
+                onPressed: () {
+                  if (_formKey.currentState!.validate()) {
+                    _saveForm();
+                  }
+                },
+                child: Text('Save Job Card'),
+              ),
             ],
           ),
         ),
